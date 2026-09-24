@@ -1,0 +1,22 @@
+#!/bin/sh
+set -e
+
+case "$1" in
+    remove|upgrade)
+        if command -v loginctl >/dev/null 2>&1 && command -v runuser >/dev/null 2>&1; then
+            loginctl list-sessions --no-legend --no-pager 2>/dev/null |
+            while read -r session_id session_uid _rest; do
+                case "$session_uid" in *[!0-9]*|'') continue ;; esac
+                [ "$session_uid" -ge 1000 ] || continue
+                [ "$(loginctl show-session "$session_id" -p Active --value 2>/dev/null)" = yes ] || continue
+                user_name="$(id -nu "$session_uid" 2>/dev/null)" || continue
+                [ -S "/run/user/$session_uid/bus" ] || continue
+                runuser -u "$user_name" -- env \
+                    XDG_RUNTIME_DIR="/run/user/$session_uid" \
+                    DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$session_uid/bus" \
+                    systemctl --user stop codex-quota-indicator.service >/dev/null 2>&1 || true
+            done
+        fi
+        ;;
+esac
+exit 0

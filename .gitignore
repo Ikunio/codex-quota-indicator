@@ -8,3 +8,5 @@ __pycache__/
 *.db
 auth.json
 config.toml
+dist/
+*.deb
